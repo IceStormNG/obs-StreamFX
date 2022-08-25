@@ -112,7 +112,7 @@ void dynamic_mask_instance::migrate(obs_data_t* data, uint64_t version) {}
 void dynamic_mask_instance::update(obs_data_t* settings)
 {
 	// Update source.
-	if (auto v = obs_data_get_string(settings, ST_KEY_INPUT); (v != nullptr) && (strlen(v) > 0)) {
+	if (const char* v = obs_data_get_string(settings, ST_KEY_INPUT); (v != nullptr) && (v[0] != '\0')) {
 		if (!acquire(v))
 			DLOG_ERROR("Failed to acquire Input source '%s'.", v);
 	} else {
@@ -169,7 +169,7 @@ void dynamic_mask_instance::update(obs_data_t* settings)
 void dynamic_mask_instance::save(obs_data_t* settings)
 {
 	if (_input) {
-		obs_data_set_string(settings, ST_KEY_INPUT, obs_source_get_name(_input->get()));
+		obs_data_set_string(settings, ST_KEY_INPUT, _input.lock().name().data());
 	}
 
 	for (auto kv1 : channel_translations) {
@@ -197,13 +197,6 @@ void dynamic_mask_instance::save(obs_data_t* settings)
 	}
 }
 
-void dynamic_mask_instance::input_renamed(obs::deprecated_source*, std::string old_name, std::string new_name)
-{
-	obs_data_t* settings = obs_source_get_settings(_self);
-	obs_data_set_string(settings, ST_KEY_INPUT, new_name.c_str());
-	obs_source_update(_self, settings);
-}
-
 void dynamic_mask_instance::video_tick(float)
 {
 	_have_input_texture  = false;
@@ -217,11 +210,12 @@ void dynamic_mask_instance::video_render(gs_effect_t* in_effect)
 	obs_source_t* target = obs_filter_get_target(_self);
 	uint32_t      width  = obs_source_get_base_width(target);
 	uint32_t      height = obs_source_get_base_height(target);
+	auto          input  = _input.lock();
 
 	if (!_self || !parent || !target || !width || !height || !_input || !_input_capture || !_effect) {
 		obs_source_skip_video_filter(_self);
 		return;
-	} else if (!_input->width() || !_input->height()) {
+	} else if (!input.width() || !input.height()) {
 		obs_source_skip_video_filter(_self);
 		return;
 	}
@@ -276,7 +270,7 @@ void dynamic_mask_instance::video_render(gs_effect_t* in_effect)
 												obs_source_get_name(_input_capture->get_object())};
 #endif
 
-			_input_texture      = _input_capture->render(_input->width(), _input->height());
+			_input_texture      = _input_capture->render(input.width(), input.height());
 			_have_input_texture = true;
 		}
 
@@ -371,21 +365,22 @@ void dynamic_mask_instance::video_render(gs_effect_t* in_effect)
 void dynamic_mask_instance::enum_active_sources(obs_source_enum_proc_t enum_callback, void* param)
 {
 	if (_input)
-		enum_callback(_self, _input->get(), param);
+		enum_callback(_self, _input.lock().get(), param);
 }
 
 void dynamic_mask_instance::enum_all_sources(obs_source_enum_proc_t enum_callback, void* param)
 {
 	if (_input)
-		enum_callback(_self, _input->get(), param);
+		enum_callback(_self, _input.lock().get(), param);
 }
 
 void streamfx::filter::dynamic_mask::dynamic_mask_instance::show()
 {
-	if (!_input || !obs_source_showing(obs_filter_get_parent(_self)))
+	if (!_input || !_self.showing() || !(_self.get_filter_parent().showing()))
 		return;
 
-	_input_vs = std::make_shared<obs::tools::visible_source>(_input->get());
+	auto input = _input.lock();
+	_input_vs  = ::streamfx::obs::source_showing_reference::add_showing_reference(input);
 }
 
 void streamfx::filter::dynamic_mask::dynamic_mask_instance::hide()
@@ -395,10 +390,11 @@ void streamfx::filter::dynamic_mask::dynamic_mask_instance::hide()
 
 void streamfx::filter::dynamic_mask::dynamic_mask_instance::activate()
 {
-	if (!_input || !obs_source_active(obs_filter_get_parent(_self)))
+	if (!_input || !_self.active() || !(_self.get_filter_parent().active()))
 		return;
 
-	_input_ac = std::make_shared<obs::tools::active_source>(_input->get());
+	auto input = _input.lock();
+	_input_ac  = ::streamfx::obs::source_active_reference::add_active_reference(input);
 }
 
 void streamfx::filter::dynamic_mask::dynamic_mask_instance::deactivate()
@@ -414,14 +410,10 @@ try {
 	}
 
 	// Acquire a reference to the actual source.
-	auto input = std::make_shared<obs::deprecated_source>(std::string(name), true, true);
+	::streamfx::obs::source input = name;
 
 	// Acquire a texture renderer for the source, with the parent source as the parent.
 	auto capture = std::make_shared<streamfx::gfx::source_texture>(input, obs_filter_get_parent(_self));
-
-	// Listed to the rename event.
-	input->events.rename += std::bind(&dynamic_mask_instance::input_renamed, this, std::placeholders::_1,
-									  std::placeholders::_2, std::placeholders::_3);
 
 	// Update our local storage.
 	_input         = input;
@@ -455,11 +447,11 @@ dynamic_mask_factory::dynamic_mask_factory()
 	_info.type         = OBS_SOURCE_TYPE_FILTER;
 	_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW;
 
-	set_have_active_child_sources(true);
-	set_have_child_sources(true);
-	set_resolution_enabled(false);
-	set_activity_tracking_enabled(true);
-	set_visibility_tracking_enabled(true);
+	support_active_child_sources(true);
+	support_child_sources(true);
+	support_size(false);
+	support_activity_tracking(true);
+	support_visibility_tracking(true);
 	finish_setup();
 	register_proxy("obs-stream-effects-filter-dynamic-mask");
 }

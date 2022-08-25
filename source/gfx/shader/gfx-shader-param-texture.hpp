@@ -6,7 +6,11 @@
 #include "gfx-shader-param.hpp"
 #include "obs/gs/gs-rendertarget.hpp"
 #include "obs/gs/gs-texture.hpp"
+#include "obs/obs-source-active-child.hpp"
+#include "obs/obs-source-active-reference.hpp"
+#include "obs/obs-source-showing-reference.hpp"
 #include "obs/obs-tools.hpp"
+#include "obs/obs-weak-source.hpp"
 
 namespace streamfx::gfx {
 	namespace shader {
@@ -15,7 +19,7 @@ namespace streamfx::gfx {
 			Enum,
 		};
 
-		texture_field_type get_texture_field_type_from_string(std::string v);
+		texture_field_type get_texture_field_type_from_string(std::string_view v);
 
 		enum class texture_type {
 			File,
@@ -54,12 +58,12 @@ namespace streamfx::gfx {
 			std::shared_ptr<streamfx::obs::gs::texture> _file_texture;
 
 			// Data: Source
-			std::string                                           _source_name;
-			std::shared_ptr<obs_source_t>                         _source;
-			std::shared_ptr<streamfx::obs::tools::child_source>   _source_child;
-			std::shared_ptr<streamfx::obs::tools::active_source>  _source_active;
-			std::shared_ptr<streamfx::obs::tools::visible_source> _source_visible;
-			std::shared_ptr<streamfx::obs::gs::rendertarget>      _source_rendertarget;
+			std::string                                              _source_name;
+			::streamfx::obs::weak_source                             _source;
+			std::shared_ptr<streamfx::obs::source_active_child>      _source_child;
+			std::shared_ptr<streamfx::obs::source_active_reference>  _source_active;
+			std::shared_ptr<streamfx::obs::source_showing_reference> _source_visible;
+			std::shared_ptr<streamfx::obs::gs::rendertarget>         _source_rendertarget;
 
 			public:
 			texture_parameter(streamfx::gfx::shader::shader* parent, streamfx::obs::gs::effect_parameter param,

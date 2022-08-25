@@ -118,7 +118,7 @@ namespace streamfx::obs {
 			_info.get_extra_data  = _get_extra_data;
 			_info.get_sei_data    = _get_sei_data;
 		}
-		virtual ~encoder_factory() {}
+		virtual ~encoder_factory() = default;
 
 		void finish_setup()
 		{
@@ -169,7 +169,7 @@ namespace streamfx::obs {
 				instance->migrate(settings, version);
 			}
 			obs_data_set_int(settings, S_VERSION, static_cast<int64_t>(STREAMFX_VERSION));
-			obs_data_set_string(settings, S_COMMIT, STREAMFX_COMMIT);
+			obs_data_set_string(settings, S_COMMIT, STREAMFX_VERSION_BUILD);
 		}
 
 		private /* Factory */:

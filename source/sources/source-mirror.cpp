@@ -188,22 +188,16 @@ try {
 	release();
 
 	// Find source by name if possible.
-	std::shared_ptr<obs_source_t> source =
-		std::shared_ptr<obs_source_t>{obs_get_source_by_name(source_name.c_str()), obs::obs_source_deleter};
-	if ((!source) || (source.get() == _self)) { // If we failed, just exit early.
+	decltype(_source) source{source_name};
+	if ((!source) || (source == _self)) { // If we failed, just exit early.
 		return;
 	}
 
 	// Everything went well, store.
-	_source_child       = std::make_shared<obs::tools::child_source>(_self, source);
-	_source             = source;
-	_source_size.first  = obs_source_get_width(_source.get());
-	_source_size.second = obs_source_get_height(_source.get());
-
-	// Listen to the rename event to update our own settings.
-	_signal_rename = std::make_shared<obs::source_signal_handler>("rename", _source);
-	_signal_rename->event.add(
-		std::bind(&mirror_instance::on_rename, this, std::placeholders::_1, std::placeholders::_2));
+	_source_child       = std::make_shared<::streamfx::obs::source_active_child>(_self, source);
+	_source             = std::move(source);
+	_source_size.first  = obs_source_get_width(_source);
+	_source_size.second = obs_source_get_height(_source);
 
 	// Listen to any audio the source spews out.
 	if (_audio_enabled) {
@@ -220,15 +214,10 @@ void mirror_instance::release()
 	_signal_audio.reset();
 	_signal_rename.reset();
 	_source_child.reset();
-	_source.reset();
+	_source.release();
 }
 
-void mirror_instance::on_rename(std::shared_ptr<obs_source_t>, calldata*)
-{
-	obs_source_save(_self);
-}
-
-void mirror_instance::on_audio(std::shared_ptr<obs_source_t>, const audio_data* audio, bool)
+void mirror_instance::on_audio(::streamfx::obs::source, const audio_data* audio, bool)
 {
 	// Immediately quit if there isn't any actual audio to send out.
 	if (!_audio_enabled) {
@@ -296,8 +285,8 @@ mirror_factory::mirror_factory()
 	_info.type         = OBS_SOURCE_TYPE_INPUT;
 	_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_AUDIO;
 
-	set_have_active_child_sources(true);
-	set_have_child_sources(true);
+	support_active_child_sources(true);
+	support_child_sources(true);
 	finish_setup();
 	register_proxy("obs-stream-effects-source-mirror");
 }

@@ -17,6 +17,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
+//--------------------------------------------------------------------------------//
+// THIS FEATURE IS DEPRECATED. SUBMITTED PATCHES WILL BE REJECTED.
+//--------------------------------------------------------------------------------//
+
 #include "filter-displacement.hpp"
 #include "strings.hpp"
 #include <stdexcept>
@@ -39,6 +43,7 @@
 #endif
 
 #define ST_I18N "Filter.Displacement"
+#define ST_I18N_DEPRECATED ST_I18N ".Deprecated"
 #define ST_I18N_FILE "Filter.Displacement.File"
 #define ST_KEY_FILE "Filter.Displacement.File"
 #define ST_I18N_SCALE "Filter.Displacement.Scale"
@@ -95,7 +100,7 @@ void displacement_instance::update(obs_data_t* settings)
 	_scale[0] = _scale[1] = static_cast<float_t>(obs_data_get_double(settings, ST_KEY_SCALE));
 	_scale_type           = static_cast<float_t>(obs_data_get_double(settings, ST_KEY_SCALE_TYPE) / 100.0);
 
-	std::string new_file = obs_data_get_string(settings, ST_KEY_FILE);
+	const char* new_file = obs_data_get_string(settings, ST_KEY_FILE);
 	if (new_file != _texture_file) {
 		try {
 			_texture      = std::make_shared<streamfx::obs::gs::texture>(new_file);
@@ -150,7 +155,7 @@ displacement_factory::displacement_factory()
 	_info.type         = OBS_SOURCE_TYPE_FILTER;
 	_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_DEPRECATED | OBS_SOURCE_CAP_DISABLED;
 
-	set_resolution_enabled(false);
+	support_size(false);
 	finish_setup();
 	register_proxy("obs-stream-effects-filter-displacement");
 }
@@ -173,6 +178,12 @@ void displacement_factory::get_defaults2(obs_data_t* data)
 obs_properties_t* displacement_factory::get_properties2(displacement_instance* data)
 {
 	obs_properties_t* pr = obs_properties_create();
+
+	{
+		auto p = obs_properties_add_text(pr, "[[deprecated]]", D_TRANSLATE(ST_I18N_DEPRECATED), OBS_TEXT_INFO);
+		obs_property_text_set_info_type(p, OBS_TEXT_INFO_WARNING);
+		obs_property_text_set_info_word_wrap(p, true);
+	}
 
 	std::string path = "";
 	if (data) {

@@ -23,7 +23,9 @@
 #include <map>
 #include "gfx/gfx-source-texture.hpp"
 #include "obs/gs/gs-effect.hpp"
+#include "obs/obs-source-active-reference.hpp"
 #include "obs/obs-source-factory.hpp"
+#include "obs/obs-source-showing-reference.hpp"
 #include "obs/obs-source-tracker.hpp"
 #include "obs/obs-source.hpp"
 #include "obs/obs-tools.hpp"
@@ -40,12 +42,12 @@ namespace streamfx::filter::dynamic_mask {
 		std::shared_ptr<streamfx::obs::gs::rendertarget> _filter_rt;
 		std::shared_ptr<streamfx::obs::gs::texture>      _filter_texture;
 
-		bool                                           _have_input_texture;
-		std::shared_ptr<obs::deprecated_source>        _input;
-		std::shared_ptr<streamfx::gfx::source_texture> _input_capture;
-		std::shared_ptr<streamfx::obs::gs::texture>    _input_texture;
-		std::shared_ptr<obs::tools::visible_source>    _input_vs;
-		std::shared_ptr<obs::tools::active_source>     _input_ac;
+		bool                                                       _have_input_texture;
+		::streamfx::obs::weak_source                               _input;
+		std::shared_ptr<streamfx::gfx::source_texture>             _input_capture;
+		std::shared_ptr<streamfx::obs::gs::texture>                _input_texture;
+		std::shared_ptr<::streamfx::obs::source_showing_reference> _input_vs;
+		std::shared_ptr<::streamfx::obs::source_active_reference>  _input_ac;
 
 		bool                                             _have_final_texture;
 		std::shared_ptr<streamfx::obs::gs::rendertarget> _final_rt;
@@ -72,8 +74,6 @@ namespace streamfx::filter::dynamic_mask {
 		virtual void migrate(obs_data_t* data, uint64_t version) override;
 		virtual void update(obs_data_t* settings) override;
 		virtual void save(obs_data_t* settings) override;
-
-		void input_renamed(obs::deprecated_source* src, std::string old_name, std::string new_name);
 
 		virtual void video_tick(float_t _time) override;
 		virtual void video_render(gs_effect_t* effect) override;
